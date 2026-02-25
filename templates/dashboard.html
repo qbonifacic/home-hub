@@ -12,7 +12,7 @@
         {% if weather %}
         <div class="display-6">{{ weather.temp_f }}°F</div>
         <p class="mb-1">{{ weather.desc }}</p>
-        <small class="text-secondary">Feels like {{ weather.feels_like }}°F · {{ weather.humidity }}% humidity</small>
+        <small class="text-secondary">Feels like {{ weather.feels_like }}°F · {{ weather.humidity }}% humidity · {{ weather.wind_mph }} mph wind</small>
         {% else %}
         <p class="text-secondary">Weather unavailable</p>
         {% endif %}

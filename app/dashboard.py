@@ -17,7 +17,7 @@ def _get_weather():
         r = requests.get(
             'https://api.open-meteo.com/v1/forecast'
             '?latitude=40.5853&longitude=-105.0844'
-            '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code'
+            '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m'
             '&temperature_unit=fahrenheit&wind_speed_unit=mph&forecast_days=1',
             timeout=8,
         )
@@ -37,6 +37,7 @@ def _get_weather():
             'desc': wmo.get(code, f'Code {code}'),
             'humidity': cur.get('relative_humidity_2m', 0),
             'feels_like': round(cur.get('apparent_temperature', 0)),
+            'wind_mph': round(cur.get('wind_speed_10m', 0)),
         }
     except Exception:
         return None
