@@ -30,7 +30,7 @@ def _todays_meals():
         records = get_all_records('Weekly Meal Plan')
         today = date.today()
         for r in records:
-            date_str = str(r.get('Date', '')).strip()
+            date_str = str(r.get('Date', '')).strip().split(' ')[0]
             for fmt in ('%m/%d/%Y', '%-m/%-d/%Y', '%Y-%m-%d'):
                 try:
                     if datetime.strptime(date_str, fmt).date() == today:
