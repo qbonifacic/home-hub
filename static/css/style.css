@@ -1,0 +1,81 @@
+:root {
+  --hub-bg: #0d1117;
+  --hub-card: #161b22;
+  --hub-border: #30363d;
+}
+
+body {
+  background-color: var(--hub-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.navbar {
+  background-color: var(--hub-card);
+  border-color: var(--hub-border) !important;
+}
+
+.hub-card {
+  background-color: var(--hub-card);
+  border-color: var(--hub-border);
+}
+
+.card-header {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: var(--hub-border);
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--hub-border);
+}
+
+.table-danger {
+  --bs-table-bg: rgba(248, 81, 73, 0.15);
+  --bs-table-color: #f85149;
+}
+
+.table-warning {
+  --bs-table-bg: rgba(210, 153, 34, 0.15);
+  --bs-table-color: #d29922;
+}
+
+.table-success {
+  --bs-table-bg: rgba(63, 185, 80, 0.1);
+  --bs-table-color: #3fb950;
+}
+
+.list-group-item.bg-transparent {
+  border-color: var(--hub-border);
+}
+
+.form-control,
+.form-select {
+  background-color: var(--hub-bg);
+  border-color: var(--hub-border);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--hub-bg);
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25);
+}
+
+a {
+  color: #58a6ff;
+}
+
+a:hover {
+  color: #79c0ff;
+}
+
+.badge {
+  font-weight: 500;
+}
+
+@media (max-width: 576px) {
+  .container-fluid {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}

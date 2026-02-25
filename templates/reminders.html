@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Reminders{% endblock %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-bell"></i> Reminders</h4>
+
+<div class="card hub-card mb-4">
+  <div class="card-body">
+    <form method="post" class="row g-2 align-items-end">
+      {{ form.hidden_tag() }}
+      <div class="col-sm">
+        <label class="form-label">Title</label>
+        {{ form.title(class="form-control", placeholder="Reminder title") }}
+      </div>
+      <div class="col-sm-auto">
+        <label class="form-label">Due Date</label>
+        {{ form.due_date(class="form-control", type="date") }}
+      </div>
+      <div class="col-sm-auto">
+        {{ form.submit(class="btn btn-primary") }}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Due Date</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reminders %}
+      <tr class="{% if r.get('Completed', 'No') == 'Yes' %}text-secondary{% endif %}">
+        <td>{{ r.get('Title', '') }}</td>
+        <td>{{ r.get('Due Date', '') }}</td>
+        <td>
+          {% if r.get('Completed', 'No') == 'Yes' %}
+          <span class="badge bg-success">Done</span>
+          {% else %}
+          <span class="badge bg-warning text-dark">Pending</span>
+          {% endif %}
+        </td>
+        <td><small>{{ r.get('Created', '') }}</small></td>
+        <td class="text-nowrap">
+          {% if r.get('Completed', 'No') != 'Yes' %}
+          <form method="post" action="{{ url_for('reminders.complete', row_index=loop.index + 1) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-success" title="Complete">
+              <i class="bi bi-check-lg"></i>
+            </button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('reminders.delete', row_index=loop.index + 1) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if not reminders %}
+<p class="text-secondary">No reminders yet.</p>
+{% endif %}
+{% endblock %}

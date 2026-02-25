@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Meals{% endblock %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-egg-fried"></i> Meal Plan</h4>
+
+<div class="row g-3">
+  {% for day in days %}
+  <div class="col-md-6 col-lg-4 col-xl-3">
+    <div class="card hub-card h-100">
+      <div class="card-header fw-bold">{{ day }}</div>
+      <div class="card-body">
+        {% if plan[day] %}
+        <ul class="list-unstyled mb-0">
+          {% for m in plan[day] %}
+          <li class="mb-2">
+            <a href="{{ url_for('meals.recipe', meal_name=m.get('meal', '')) }}">{{ m.get('meal', 'Unknown') }}</a>
+            <br><small class="text-secondary">{{ m.get('meal_type', '') }}</small>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-secondary mb-0">No meals</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

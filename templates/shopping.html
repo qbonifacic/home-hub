@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Shopping{% endblock %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-cart3"></i> Shopping List</h4>
+
+{% for category, items in groups.items() %}
+{% if items %}
+<div class="card hub-card mb-3">
+  <div class="card-header fw-bold">{{ category }}</div>
+  <div class="card-body p-0">
+    <ul class="list-group list-group-flush">
+      {% for item in items %}
+      <li class="list-group-item d-flex align-items-center bg-transparent">
+        <input type="checkbox" class="form-check-input me-3 shopping-check">
+        <span class="flex-grow-1 shopping-label">{{ item.name }}</span>
+        <a href="{{ item.sprouts_url }}" target="_blank" class="btn btn-sm btn-outline-success me-1" title="Sprouts">
+          <i class="bi bi-shop"></i> S
+        </a>
+        <a href="{{ item.wholefoods_url }}" target="_blank" class="btn btn-sm btn-outline-info" title="Whole Foods">
+          <i class="bi bi-shop-window"></i> WF
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if not groups or not (groups.get('Produce') or groups.get('Protein') or groups.get('Dairy') or groups.get('Pantry')) %}
+<p class="text-secondary">No ingredients found. Add meals with recipes to generate a shopping list.</p>
+{% endif %}
+
+<script>
+document.querySelectorAll('.shopping-check').forEach(cb => {
+  cb.addEventListener('change', function() {
+    const label = this.closest('li').querySelector('.shopping-label');
+    label.classList.toggle('text-decoration-line-through', this.checked);
+    label.classList.toggle('text-secondary', this.checked);
+  });
+});
+</script>
+{% endblock %}

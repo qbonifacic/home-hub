@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ meal_name }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('meals.index') }}" class="btn btn-outline-secondary btn-sm mb-3">
+  <i class="bi bi-arrow-left"></i> Back to Meals
+</a>
+
+{% if recipe %}
+<div class="card hub-card">
+  <div class="card-body">
+    <h4>{{ recipe.meal_name }}</h4>
+
+    <div class="row g-3 mb-4">
+      <div class="col-auto">
+        <span class="badge bg-info">Fat: {{ recipe.get('fat_g', '—') }}g</span>
+      </div>
+      <div class="col-auto">
+        <span class="badge bg-success">Protein: {{ recipe.get('protein_g', '—') }}g</span>
+      </div>
+      <div class="col-auto">
+        <span class="badge bg-warning text-dark">Net Carbs: {{ recipe.get('net_carbs_g', '—') }}g</span>
+      </div>
+    </div>
+
+    <h6>Ingredients</h6>
+    <ul>
+      {% for item in recipe.ingredients %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+
+    <h6>Instructions</h6>
+    <p style="white-space: pre-line;">{{ recipe.get('instructions', 'No instructions available.') }}</p>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning">Recipe not found for "{{ meal_name }}".</div>
+{% endif %}
+{% endblock %}

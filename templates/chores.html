@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Chores{% endblock %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-check2-square"></i> Chores</h4>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Task</th>
+        <th>Frequency</th>
+        <th>Last Done</th>
+        <th>Next Due</th>
+        <th>Assigned</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in chores %}
+      <tr class="{% if c.status == 'overdue' %}table-danger{% elif c.status == 'today' %}table-warning{% else %}table-success{% endif %}">
+        <td>{{ c.get('task', '') }}</td>
+        <td>{{ c.get('frequency', '') }}</td>
+        <td>{{ c.get('last_done', '—') }}</td>
+        <td>{{ c.get('next_due', '—') }}</td>
+        <td>{{ c.get('assigned', '') }}</td>
+        <td>
+          <form method="post" action="{{ url_for('chores.mark_done', row_index=loop.index + 1) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-success" title="Mark done">
+              <i class="bi bi-check-lg"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if not chores %}
+<p class="text-secondary">No chores configured yet.</p>
+{% endif %}
+{% endblock %}

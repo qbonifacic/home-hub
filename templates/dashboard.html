@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-speedometer2"></i> Dashboard — {{ today.strftime('%A, %B %d') }}</h4>
+
+<div class="row g-3">
+  <!-- Weather -->
+  <div class="col-md-6 col-lg-3">
+    <div class="card hub-card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><i class="bi bi-cloud-sun"></i> Fort Collins</h6>
+        {% if weather %}
+        <div class="display-6">{{ weather.temp_f }}°F</div>
+        <p class="mb-1">{{ weather.desc }}</p>
+        <small class="text-secondary">Feels like {{ weather.feels_like }}°F · {{ weather.humidity }}% humidity</small>
+        {% else %}
+        <p class="text-secondary">Weather unavailable</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Meals -->
+  <div class="col-md-6 col-lg-3">
+    <div class="card hub-card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><i class="bi bi-egg-fried"></i> Today's Meals</h6>
+        {% if meals %}
+        <ul class="list-unstyled mb-0">
+          {% for m in meals %}
+          <li class="mb-1">
+            <a href="{{ url_for('meals.recipe', meal_name=m.get('meal', '')) }}">{{ m.get('meal', 'Unknown') }}</a>
+            <small class="text-secondary">{{ m.get('meal_type', '') }}</small>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-secondary">No meals planned</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Overdue Chores -->
+  <div class="col-md-6 col-lg-3">
+    <div class="card hub-card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><i class="bi bi-exclamation-triangle"></i> Overdue Chores</h6>
+        {% if overdue %}
+        <ul class="list-unstyled mb-0">
+          {% for c in overdue %}
+          <li class="text-danger mb-1">{{ c.get('task', 'Unknown') }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-success mb-0">All caught up!</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming Events -->
+  <div class="col-md-6 col-lg-3">
+    <div class="card hub-card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><i class="bi bi-calendar-event"></i> Upcoming</h6>
+        {% if events %}
+        <ul class="list-unstyled mb-0">
+          {% for e in events %}
+          <li class="mb-1">
+            <small class="text-secondary">{{ e.time }}</small> {{ e.summary }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-secondary">No upcoming events</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

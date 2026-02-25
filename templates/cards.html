@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Cards{% endblock %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-card-text"></i> Memory Cards</h4>
+
+<div class="card hub-card mb-4">
+  <div class="card-body">
+    <form method="post" class="row g-2 align-items-end">
+      {{ form.hidden_tag() }}
+      <div class="col-sm-3">
+        <label class="form-label">Category</label>
+        {{ form.category(class="form-select") }}
+      </div>
+      <div class="col-sm">
+        <label class="form-label">Learning</label>
+        {{ form.learning(class="form-control", rows=1, placeholder="What did you learn?") }}
+      </div>
+      <div class="col-sm-auto">
+        <label class="form-label">Confidence</label>
+        {{ form.confidence(class="form-select") }}
+      </div>
+      <div class="col-sm-auto">
+        {{ form.submit(class="btn btn-primary") }}
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for category, cards in grouped.items() | sort %}
+<h5 class="mt-4 mb-2 text-capitalize">{{ category }}</h5>
+<div class="row g-2">
+  {% for c in cards %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card hub-card h-100">
+      <div class="card-body">
+        <p class="mb-1">{{ c.learning }}</p>
+        <small class="text-secondary">
+          <span class="badge bg-{% if c.confidence == 'high' %}success{% elif c.confidence == 'medium' %}warning text-dark{% else %}secondary{% endif %}">{{ c.confidence }}</span>
+          {{ c.recorded[:10] if c.recorded else '' }}
+        </small>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+{% if not grouped %}
+<p class="text-secondary">No cards found.</p>
+{% endif %}
+{% endblock %}
