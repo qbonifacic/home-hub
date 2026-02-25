@@ -3,62 +3,82 @@
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h4 class="mb-0"><i class="bi bi-cart3"></i> Shopping List</h4>
-  <button class="btn btn-sm btn-outline-primary" id="btn-ai-list" onclick="askAiForList()">
-    <i class="bi bi-stars"></i> Generate with AI
+  <button class="btn btn-sm btn-outline-primary" onclick="askAiForList()">
+    <i class="bi bi-stars"></i> Ask Q
   </button>
 </div>
 
 {% if meal_names %}
-<div class="card hub-card mb-3">
-  <div class="card-header text-secondary small">📅 This week's meals</div>
+<div class="card hub-card mb-4">
+  <div class="card-header text-secondary small">📅 Sourced from this week's meals</div>
   <div class="card-body py-2">
     <div class="d-flex flex-wrap gap-2">
       {% for meal in meal_names %}
-      <span class="badge bg-secondary">{{ meal }}</span>
+        {% if meal not in unmatched %}
+          <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25">{{ meal }}</span>
+        {% else %}
+          <span class="badge bg-secondary" title="No ingredient data — use Ask Q to generate">{{ meal }} ⚠</span>
+        {% endif %}
       {% endfor %}
     </div>
+    {% if unmatched %}
+    <p class="text-secondary small mt-2 mb-0">⚠ Grey meals have no ingredient data yet. Hit <strong>Ask Q</strong> to generate a list for them.</p>
+    {% endif %}
   </div>
 </div>
 {% endif %}
 
-{% for category, items in groups.items() %}
-{% if items %}
-<div class="card hub-card mb-3">
-  <div class="card-header fw-bold">
-    {% if category == 'Produce' %}🥦{% elif category == 'Protein' %}🥩{% elif category == 'Dairy' %}🧀{% else %}🥫{% endif %}
-    {{ category }}
+{% if groups %}
+<div class="row g-3">
+  {% for category, items in groups.items() %}
+  <div class="col-12 col-md-6">
+    <div class="card hub-card h-100">
+      <div class="card-header fw-semibold">
+        {% if category == 'Produce' %}🥦{% elif category == 'Protein' %}🥩{% elif category == 'Dairy' %}🧀{% else %}🥫{% endif %}
+        {{ category }}
+        <span class="text-secondary small fw-normal ms-1">({{ items|length }})</span>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for item in items %}
+          <li class="list-group-item d-flex align-items-center bg-transparent py-2">
+            <input type="checkbox" class="form-check-input me-3 shopping-check flex-shrink-0">
+            <span class="flex-grow-1 shopping-label me-2" style="font-size:14px;">{{ item.name }}</span>
+            <a href="{{ item.sprouts_url }}" target="_blank"
+               class="btn btn-sm btn-outline-success py-0 px-2 me-1 flex-shrink-0"
+               title="Search on Sprouts" style="font-size:12px;">
+              Sprouts
+            </a>
+            <a href="{{ item.wholefoods_url }}" target="_blank"
+               class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0"
+               title="Search on Whole Foods" style="font-size:12px;">
+              WF
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
   </div>
-  <div class="card-body p-0">
-    <ul class="list-group list-group-flush">
-      {% for item in items %}
-      <li class="list-group-item d-flex align-items-center bg-transparent">
-        <input type="checkbox" class="form-check-input me-3 shopping-check">
-        <span class="flex-grow-1 shopping-label">{{ item.name }}</span>
-        <a href="{{ item.sprouts_url }}" target="_blank" class="btn btn-sm btn-outline-success me-1" title="Search Sprouts">
-          <i class="bi bi-shop"></i> Sprouts
-        </a>
-        <a href="{{ item.wholefoods_url }}" target="_blank" class="btn btn-sm btn-outline-info" title="Search Whole Foods">
-          <i class="bi bi-shop-window"></i> WF
-        </a>
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
+  {% endfor %}
 </div>
-{% endif %}
-{% endfor %}
 
-{% if not groups %}
+<div class="mt-3 text-secondary small">
+  {% set total = namespace(n=0) %}{% for v in groups.values() %}{% set total.n = total.n + v|length %}{% endfor %}{{ total.n }} total items · Generated from {{ meal_names|length }} meals
+</div>
+
+{% else %}
 <div class="card hub-card">
   <div class="card-body text-center py-4">
-    <p class="text-secondary mb-3">No meal plan data found for this week.</p>
-    <p class="text-secondary small">Hit <strong>Generate with AI</strong> to build a list from scratch, or add meals to the meal plan first.</p>
+    <p class="text-secondary mb-2">No meal plan found for this week.</p>
+    <button class="btn btn-outline-primary btn-sm" onclick="askAiForList()">
+      <i class="bi bi-stars"></i> Ask Q to build a list
+    </button>
   </div>
 </div>
 {% endif %}
 
 <script>
-// Checkbox strike-through
 document.querySelectorAll('.shopping-check').forEach(cb => {
   cb.addEventListener('change', function() {
     const label = this.closest('li').querySelector('.shopping-label');
@@ -67,16 +87,11 @@ document.querySelectorAll('.shopping-check').forEach(cb => {
   });
 });
 
-// Pre-fill AI chat with a shopping list request
 function askAiForList() {
-  const chatInput = document.getElementById('chat-input');
-  const chatPanel = document.getElementById('chat-panel');
-  const chatBtn = document.getElementById('chat-btn');
-  if (chatInput && chatPanel) {
-    chatPanel.style.display = 'flex';
-    if (chatBtn) chatBtn.style.display = 'none';  // hide toggle button while open
-    chatInput.value = "Generate a detailed keto grocery shopping list for this week's meal plan. Group by produce, protein, dairy, and pantry.";
-    chatInput.focus();
+  const inp = document.getElementById('chat-input');
+  if(inp) {
+    inp.value = "Generate a full keto grocery list for this week's meal plan. Group by produce, protein, dairy, and pantry.";
+    inp.focus();
   }
 }
 </script>
