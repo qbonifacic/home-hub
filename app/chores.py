@@ -16,12 +16,29 @@ FREQ_DAYS = {
 }
 
 
+def _parse_date(raw):
+    import re
+    clean = re.sub(r'\s*\(.*?\)', '', str(raw)).strip()
+    for fmt in ('%m/%d/%Y', '%-m/%-d/%Y', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(clean, fmt).date()
+        except ValueError:
+            pass
+    # try splitting by /
+    parts = clean.split('/')
+    if len(parts) == 3:
+        try:
+            return date(int(parts[2]), int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            pass
+    return None
+
+
 def _chore_status(next_due_str):
     if not next_due_str:
         return 'ok'
-    try:
-        due = datetime.strptime(str(next_due_str), '%Y-%m-%d').date()
-    except ValueError:
+    due = _parse_date(next_due_str)
+    if not due:
         return 'ok'
     today = date.today()
     if due < today:
@@ -31,6 +48,11 @@ def _chore_status(next_due_str):
     return 'ok'
 
 
+def _normalize(record):
+    """Normalize sheet keys: lowercase, spaces→underscores."""
+    return {k.lower().replace(' ', '_'): v for k, v in record.items()}
+
+
 @chores_bp.route('/chores')
 @login_required
 def index():
@@ -38,9 +60,10 @@ def index():
         records = get_all_records('Chores')
     except Exception:
         records = []
-    for r in records:
+    normalized = [_normalize(r) for r in records]
+    for r in normalized:
         r['status'] = _chore_status(r.get('next_due', ''))
-    return render_template('chores.html', chores=records)
+    return render_template('chores.html', chores=normalized)
 
 
 @chores_bp.route('/chores/done/<int:row_index>', methods=['POST'])
@@ -49,10 +72,11 @@ def mark_done(row_index):
     try:
         ws = get_worksheet('Chores')
         row = ws.row_values(row_index)
-        today_str = date.today().strftime('%Y-%m-%d')
+        today_str = f"{date.today().month}/{date.today().day}/{date.today().year}"
         freq = row[1].strip().lower() if len(row) > 1 else 'weekly'
         days = FREQ_DAYS.get(freq, 7)
-        next_due = (date.today() + timedelta(days=days)).strftime('%Y-%m-%d')
+        nd = date.today() + timedelta(days=days)
+        next_due = f"{nd.month}/{nd.day}/{nd.year}"
         ws.update_cell(row_index, 3, today_str)
         ws.update_cell(row_index, 4, next_due)
     except Exception:
