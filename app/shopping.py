@@ -1,7 +1,8 @@
-import json
+import re
+from datetime import date
 from urllib.parse import quote_plus
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 
 from .sheets import get_all_records
@@ -12,12 +13,14 @@ CATEGORY_KEYWORDS = {
     'Produce': ['lettuce', 'spinach', 'kale', 'avocado', 'tomato', 'onion', 'garlic',
                 'pepper', 'broccoli', 'cauliflower', 'zucchini', 'mushroom', 'celery',
                 'cucumber', 'lime', 'lemon', 'cilantro', 'basil', 'jalapeño', 'cabbage',
-                'asparagus', 'green bean', 'bell pepper', 'arugula', 'radish'],
+                'asparagus', 'green bean', 'bell pepper', 'arugula', 'radish', 'berry',
+                'blueberr', 'strawberr', 'raspberry', 'herb', 'mint', 'parsley'],
     'Protein': ['chicken', 'beef', 'pork', 'salmon', 'shrimp', 'turkey', 'bacon',
-                'sausage', 'steak', 'ground', 'egg', 'tuna', 'lamb', 'cod', 'tilapia'],
+                'sausage', 'steak', 'ground', 'egg', 'tuna', 'lamb', 'cod', 'tilapia',
+                'brisket', 'rib', 'wing', 'thigh', 'breast', 'loin', 'fillet', 'anchovy'],
     'Dairy': ['cheese', 'cream', 'butter', 'yogurt', 'milk', 'sour cream',
               'mozzarella', 'parmesan', 'cheddar', 'cream cheese', 'heavy cream',
-              'half and half', 'ghee'],
+              'half and half', 'ghee', 'brie', 'feta', 'gouda', 'ricotta'],
     'Pantry': [],
 }
 
@@ -33,28 +36,98 @@ def _categorize(item):
     return 'Pantry'
 
 
-def _build_list():
+def _parse_date(raw):
+    clean = re.sub(r'\s*\(.*?\)', '', str(raw)).strip()
+    parts = clean.split('/')
+    if len(parts) == 3:
+        try:
+            return date(int(parts[2]), int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            pass
+    return None
+
+
+def _this_weeks_meals():
+    """Get all unique meal names from this week's plan."""
     try:
-        plan = get_all_records('MealPlan')
-        recipes = get_all_records('Recipes')
+        records = get_all_records('Weekly Meal Plan')
     except Exception:
-        return {}
+        return []
 
-    recipe_map = {r['meal_name'].strip().lower(): r for r in recipes if r.get('meal_name')}
-    ingredients = set()
+    today = date.today()
+    meals = []
+    for row in records:
+        d = _parse_date(row.get('Date', ''))
+        if d is None:
+            continue
+        # Include meals within ±3 days of today (current week window)
+        if abs((d - today).days) <= 6:
+            for col in ('Breakfast', 'Lunch', 'Dinner', 'Snack'):
+                val = str(row.get(col, '')).strip()
+                if val and val.lower() not in ('', 'none', '-', 'n/a'):
+                    meals.append(val)
+    return list(dict.fromkeys(meals))  # dedupe, preserve order
 
-    for meal in plan:
-        name = meal.get('meal', '').strip().lower()
-        if name in recipe_map:
-            try:
-                items = json.loads(recipe_map[name].get('ingredients_json', '[]'))
-                for item in items:
-                    ingredients.add(str(item).strip())
-            except (json.JSONDecodeError, TypeError):
-                pass
+
+def _meals_to_ingredients(meal_names):
+    """
+    Best-effort ingredient extraction from meal names using keyword matching.
+    Falls back to using the meal name itself as the shopping item.
+    """
+    # Common keto ingredient patterns by meal keyword
+    MEAL_INGREDIENTS = {
+        'scrambled egg': ['eggs', 'butter', 'salt', 'pepper'],
+        'egg': ['eggs', 'butter'],
+        'bacon': ['bacon'],
+        'avocado': ['avocados'],
+        'greek yogurt': ['full-fat Greek yogurt', 'berries'],
+        'tuna': ['canned tuna', 'mayo', 'celery', 'lemon'],
+        'salmon': ['salmon fillet', 'lemon', 'butter', 'garlic', 'dill'],
+        'chicken': ['chicken breast', 'olive oil', 'garlic', 'lemon'],
+        'ground beef': ['ground beef', 'onion', 'garlic'],
+        'steak': ['ribeye steak', 'butter', 'garlic', 'rosemary'],
+        'burger': ['ground beef', 'lettuce', 'tomato', 'onion', 'cheese'],
+        'salad': ['mixed greens', 'olive oil', 'lemon', 'salt'],
+        'soup': ['chicken broth', 'vegetables', 'herbs'],
+        'broccoli': ['broccoli', 'butter', 'garlic'],
+        'cauliflower': ['cauliflower', 'butter', 'cheese'],
+        'cheese': ['cheese'],
+        'pork': ['pork chops', 'olive oil', 'garlic'],
+        'shrimp': ['shrimp', 'butter', 'garlic', 'lemon'],
+        'wrap': ['lettuce wraps', 'protein', 'sauce'],
+        'smoothie': ['protein powder', 'almond milk', 'berries', 'spinach'],
+    }
+
+    all_ingredients = set()
+    unmatched = []
+
+    for meal in meal_names:
+        lower = meal.lower()
+        matched = False
+        for kw, ingredients in MEAL_INGREDIENTS.items():
+            if kw in lower:
+                all_ingredients.update(ingredients)
+                matched = True
+        if not matched:
+            # Use meal name as the shopping item
+            unmatched.append(meal)
+
+    # Add unmatched meals as-is (still useful as search terms)
+    for m in unmatched:
+        all_ingredients.add(m)
+
+    return sorted(all_ingredients)
+
+
+def _build_list():
+    meal_names = _this_weeks_meals()
+    if not meal_names:
+        return {}, []
+
+    ingredients = _meals_to_ingredients(meal_names)
 
     grouped = {'Produce': [], 'Protein': [], 'Dairy': [], 'Pantry': []}
-    for item in sorted(ingredients):
+    for item in ingredients:
         cat = _categorize(item)
         encoded = quote_plus(item)
         grouped[cat].append({
@@ -62,10 +135,14 @@ def _build_list():
             'sprouts_url': f'https://shop.sprouts.com/search?search_term={encoded}',
             'wholefoods_url': f'https://www.wholefoodsmarket.com/search?text={encoded}',
         })
-    return grouped
+
+    # Remove empty categories
+    grouped = {k: v for k, v in grouped.items() if v}
+    return grouped, meal_names
 
 
 @shopping_bp.route('/shopping')
 @login_required
 def index():
-    return render_template('shopping.html', groups=_build_list())
+    groups, meal_names = _build_list()
+    return render_template('shopping.html', groups=groups, meal_names=meal_names)

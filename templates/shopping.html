@@ -1,22 +1,43 @@
 {% extends "base.html" %}
 {% block title %}Shopping{% endblock %}
 {% block content %}
-<h4 class="mb-3"><i class="bi bi-cart3"></i> Shopping List</h4>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h4 class="mb-0"><i class="bi bi-cart3"></i> Shopping List</h4>
+  <button class="btn btn-sm btn-outline-primary" id="btn-ai-list" onclick="askAiForList()">
+    <i class="bi bi-stars"></i> Generate with AI
+  </button>
+</div>
+
+{% if meal_names %}
+<div class="card hub-card mb-3">
+  <div class="card-header text-secondary small">📅 This week's meals</div>
+  <div class="card-body py-2">
+    <div class="d-flex flex-wrap gap-2">
+      {% for meal in meal_names %}
+      <span class="badge bg-secondary">{{ meal }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
 
 {% for category, items in groups.items() %}
 {% if items %}
 <div class="card hub-card mb-3">
-  <div class="card-header fw-bold">{{ category }}</div>
+  <div class="card-header fw-bold">
+    {% if category == 'Produce' %}🥦{% elif category == 'Protein' %}🥩{% elif category == 'Dairy' %}🧀{% else %}🥫{% endif %}
+    {{ category }}
+  </div>
   <div class="card-body p-0">
     <ul class="list-group list-group-flush">
       {% for item in items %}
       <li class="list-group-item d-flex align-items-center bg-transparent">
         <input type="checkbox" class="form-check-input me-3 shopping-check">
         <span class="flex-grow-1 shopping-label">{{ item.name }}</span>
-        <a href="{{ item.sprouts_url }}" target="_blank" class="btn btn-sm btn-outline-success me-1" title="Sprouts">
-          <i class="bi bi-shop"></i> S
+        <a href="{{ item.sprouts_url }}" target="_blank" class="btn btn-sm btn-outline-success me-1" title="Search Sprouts">
+          <i class="bi bi-shop"></i> Sprouts
         </a>
-        <a href="{{ item.wholefoods_url }}" target="_blank" class="btn btn-sm btn-outline-info" title="Whole Foods">
+        <a href="{{ item.wholefoods_url }}" target="_blank" class="btn btn-sm btn-outline-info" title="Search Whole Foods">
           <i class="bi bi-shop-window"></i> WF
         </a>
       </li>
@@ -27,11 +48,17 @@
 {% endif %}
 {% endfor %}
 
-{% if not groups or not (groups.get('Produce') or groups.get('Protein') or groups.get('Dairy') or groups.get('Pantry')) %}
-<p class="text-secondary">No ingredients found. Add meals with recipes to generate a shopping list.</p>
+{% if not groups %}
+<div class="card hub-card">
+  <div class="card-body text-center py-4">
+    <p class="text-secondary mb-3">No meal plan data found for this week.</p>
+    <p class="text-secondary small">Hit <strong>Generate with AI</strong> to build a list from scratch, or add meals to the meal plan first.</p>
+  </div>
+</div>
 {% endif %}
 
 <script>
+// Checkbox strike-through
 document.querySelectorAll('.shopping-check').forEach(cb => {
   cb.addEventListener('change', function() {
     const label = this.closest('li').querySelector('.shopping-label');
@@ -39,5 +66,18 @@ document.querySelectorAll('.shopping-check').forEach(cb => {
     label.classList.toggle('text-secondary', this.checked);
   });
 });
+
+// Pre-fill AI chat with a shopping list request
+function askAiForList() {
+  const chatInput = document.getElementById('chat-input');
+  const chatPanel = document.getElementById('chat-panel');
+  const chatBtn = document.getElementById('chat-btn');
+  if (chatInput && chatPanel) {
+    chatPanel.style.display = 'flex';
+    if (chatBtn) chatBtn.style.display = 'none';  // hide toggle button while open
+    chatInput.value = "Generate a detailed keto grocery shopping list for this week's meal plan. Group by produce, protein, dairy, and pantry.";
+    chatInput.focus();
+  }
+}
 </script>
 {% endblock %}
