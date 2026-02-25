@@ -27,9 +27,22 @@ def _get_weather():
 
 def _todays_meals():
     try:
-        records = get_all_records('MealPlan')
-        today_str = date.today().strftime('%A')
-        return [r for r in records if r.get('day', '').strip().lower() == today_str.lower()]
+        records = get_all_records('Weekly Meal Plan')
+        today = date.today()
+        for r in records:
+            date_str = str(r.get('Date', '')).strip()
+            for fmt in ('%m/%d/%Y', '%-m/%-d/%Y', '%Y-%m-%d'):
+                try:
+                    if datetime.strptime(date_str, fmt).date() == today:
+                        meals = []
+                        for meal_type in ('Breakfast', 'Lunch', 'Dinner', 'Snack'):
+                            val = r.get(meal_type, '').strip()
+                            if val:
+                                meals.append({'meal_type': meal_type, 'meal': val})
+                        return meals
+                except ValueError:
+                    continue
+        return []
     except Exception:
         return []
 
@@ -40,14 +53,16 @@ def _overdue_chores():
         today = date.today()
         overdue = []
         for r in records:
-            next_due = r.get('next_due', '')
+            next_due = str(r.get('Next Due', r.get('next_due', ''))).strip()
             if next_due:
-                try:
-                    due = datetime.strptime(str(next_due), '%Y-%m-%d').date()
-                    if due < today:
-                        overdue.append(r)
-                except ValueError:
-                    pass
+                for fmt in ('%m/%d/%Y', '%-m/%-d/%Y', '%Y-%m-%d'):
+                    try:
+                        due = datetime.strptime(next_due, fmt).date()
+                        if due < today:
+                            overdue.append(r)
+                        break
+                    except ValueError:
+                        continue
         return overdue
     except Exception:
         return []

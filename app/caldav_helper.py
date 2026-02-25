@@ -23,7 +23,7 @@ def get_week_events():
         end = start + timedelta(days=7)
         events = []
         for cal in calendars:
-            results = cal.date_search(start=start, end=end, expand=True)
+            results = cal.search(start=start, end=end, event=True, expand=True)
             for event in results:
                 vevent = event.vobject_instance.vevent
                 summary = str(vevent.summary.value) if hasattr(vevent, 'summary') else 'No title'
