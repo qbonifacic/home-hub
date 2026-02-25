@@ -1,4 +1,5 @@
 import re
+import sys
 from datetime import datetime, date
 
 import requests
@@ -23,6 +24,7 @@ def _get_weather():
         )
         data = r.json()
         cur = data.get('current', {})
+        print(f"[weather] cur={cur}", file=sys.stderr)
         wmo = {
             0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
             45: 'Foggy', 48: 'Icy fog', 51: 'Light drizzle', 53: 'Drizzle',
