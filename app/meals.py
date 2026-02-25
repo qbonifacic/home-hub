@@ -1,4 +1,6 @@
 import json
+import re
+from datetime import date
 
 from flask import Blueprint, render_template
 from flask_login import login_required
@@ -10,14 +12,32 @@ meals_bp = Blueprint('meals', __name__)
 DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 
+def _parse_sheet_date(raw):
+    """Parse '2/25/2026 (Wed)' or '2/25/2026' robustly."""
+    clean = re.sub(r'\s*\(.*?\)', '', str(raw)).strip()
+    parts = clean.split('/')
+    if len(parts) == 3:
+        try:
+            return date(int(parts[2]), int(parts[0]), int(parts[1]))
+        except ValueError:
+            pass
+    return None
+
+
 def _get_meal_plan():
     try:
-        records = get_all_records('MealPlan')
+        records = get_all_records('Weekly Meal Plan')
         plan = {day: [] for day in DAYS}
         for r in records:
-            day = r.get('day', '').strip()
-            if day in plan:
-                plan[day].append(r)
+            dt = _parse_sheet_date(r.get('Date', ''))
+            if dt is None:
+                continue
+            day_name = dt.strftime('%A')
+            if day_name in plan:
+                for meal_type in ('Breakfast', 'Lunch', 'Dinner', 'Snack'):
+                    val = str(r.get(meal_type, '')).strip()
+                    if val:
+                        plan[day_name].append({'meal': val, 'meal_type': meal_type})
         return plan
     except Exception:
         return {day: [] for day in DAYS}
