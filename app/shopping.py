@@ -208,6 +208,18 @@ def _build_list(meal_names):
     for cat in grouped:
         grouped[cat].sort(key=lambda x: x['name'].lower())
 
+    # Add unmatched meals directly as shopping items (search by meal name)
+    if unmatched_meals:
+        if 'Other' not in grouped:
+            grouped['Other'] = []
+        for meal in unmatched_meals:
+            grouped['Other'].append({
+                'name': meal,
+                'sprouts_url': _sprouts_url(meal, 'Other'),
+                'wholefoods_url': _wf_url(meal, 'Other'),
+                'organic': False,
+            })
+
     # Remove empty categories
     grouped = {k: v for k, v in grouped.items() if v}
     return grouped, unmatched_meals
@@ -217,7 +229,7 @@ def _sprouts_url(item, category):
     """Build Sprouts search URL — organic prefix for Produce & Dairy."""
     prefix = "organic " if category in ("Produce", "Dairy") else ""
     encoded = quote_plus(f"{prefix}{item}")
-    return f"https://shop.sprouts.com/search?search_term={encoded}"
+    return f"https://shop.sprouts.com/store/sprouts/storefront?search_term={encoded}"
 
 
 def _wf_url(item, category):

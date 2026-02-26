@@ -34,7 +34,7 @@
   <div class="col-12 col-md-6">
     <div class="card hub-card h-100">
       <div class="card-header fw-semibold">
-        {% if category == 'Produce' %}🥦{% elif category == 'Protein' %}🥩{% elif category == 'Dairy' %}🧀{% else %}🥫{% endif %}
+        {% if category == 'Produce' %}🥦{% elif category == 'Protein' %}🥩{% elif category == 'Dairy' %}🧀{% elif category == 'Other' %}🛒{% else %}🥫{% endif %}
         {{ category }}
         <span class="text-secondary small fw-normal ms-1">({{ items|length }})</span>
       </div>
@@ -92,7 +92,7 @@ document.querySelectorAll('.shopping-check').forEach(cb => {
 function askAiForList() {
   const inp = document.getElementById('chat-input');
   if(inp) {
-    inp.value = "Generate a full keto grocery list for this week's meal plan. Group by produce, protein, dairy, and pantry.";
+    inp.value = "Generate a detailed grocery shopping list for this week's meal plan. Group by produce, protein, dairy, and pantry.";
     inp.focus();
   }
 }
