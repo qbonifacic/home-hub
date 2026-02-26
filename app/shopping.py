@@ -197,11 +197,11 @@ def _build_list(meal_names):
     # Group by category
     grouped = {'Produce': [], 'Protein': [], 'Dairy': [], 'Pantry': []}
     for _, (item, cat) in sorted(all_ingredients.items()):
-        encoded = quote_plus(item)
         grouped[cat].append({
             'name': item,
-            'sprouts_url': f'https://shop.sprouts.com/search?search_term={encoded}',
-            'wholefoods_url': f'https://www.wholefoodsmarket.com/search?text={encoded}',
+            'sprouts_url': _sprouts_url(item, cat),
+            'wholefoods_url': _wf_url(item, cat),
+            'organic': cat in ('Produce', 'Dairy'),
         })
 
     # Sort each category alphabetically
@@ -211,6 +211,19 @@ def _build_list(meal_names):
     # Remove empty categories
     grouped = {k: v for k, v in grouped.items() if v}
     return grouped, unmatched_meals
+
+
+def _sprouts_url(item, category):
+    """Build Sprouts search URL — organic prefix for Produce & Dairy."""
+    prefix = "organic " if category in ("Produce", "Dairy") else ""
+    encoded = quote_plus(f"{prefix}{item}")
+    return f"https://shop.sprouts.com/search?search_term={encoded}"
+
+
+def _wf_url(item, category):
+    prefix = "organic " if category in ("Produce", "Dairy") else ""
+    encoded = quote_plus(f"{prefix}{item}")
+    return f"https://www.wholefoodsmarket.com/search?text={encoded}"
 
 
 @shopping_bp.route('/shopping')
