@@ -42,6 +42,7 @@ def create_app():
     from .reminders import reminders_bp
     from .cards import cards_bp
     from .chat import chat_bp
+    from .health import health_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -52,5 +53,6 @@ def create_app():
     app.register_blueprint(reminders_bp)
     app.register_blueprint(cards_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(health_bp)
 
     return app
