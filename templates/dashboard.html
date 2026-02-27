@@ -81,5 +81,22 @@
       </div>
     </div>
   </div>
+
+  <!-- Goals Summary -->
+  {% if goals %}
+  <div class="col-md-6 col-lg-3">
+    <div class="card hub-card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><i class="bi bi-trophy"></i> 2026 Goals</h6>
+        <div class="display-6">{{ goals.completed }}/{{ goals.total }}</div>
+        <p class="mb-1">{{ goals.in_progress }} in progress</p>
+        <div class="progress mt-2" style="height: 6px; background-color: var(--hub-border);">
+          <div class="progress-bar bg-success" style="width: {{ (goals.completed / goals.total * 100) | int if goals.total else 0 }}%"></div>
+        </div>
+        <a href="/goals" class="text-secondary small">View all &rarr;</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

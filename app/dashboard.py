@@ -104,6 +104,17 @@ def _upcoming_events():
         return []
 
 
+def _goals_summary():
+    try:
+        records = get_all_records('Goals')
+        total = len(records)
+        completed = sum(1 for r in records if r.get('Status', '').strip().lower() == 'completed')
+        in_progress = sum(1 for r in records if r.get('Status', '').strip().lower() == 'in progress')
+        return {'total': total, 'completed': completed, 'in_progress': in_progress}
+    except Exception:
+        return None
+
+
 @dashboard_bp.route('/')
 @login_required
 def index():
@@ -114,4 +125,5 @@ def index():
         meals=_todays_meals(),
         overdue=_overdue_chores(),
         events=_upcoming_events(),
+        goals=_goals_summary(),
     )
