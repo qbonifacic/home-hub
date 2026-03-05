@@ -1,11 +1,19 @@
+import json
+import os
 import re
 from datetime import date
 from urllib.parse import quote_plus
 
-from flask import Blueprint, render_template
+import requests as http_requests
+
+from flask import Blueprint, render_template, request, jsonify, session
 from flask_login import login_required
 
 from .sheets import get_all_records
+
+_LLM_CACHE_PATH = '/tmp/meal_ingredient_cache.json'
+_LLM_BASE_URL = 'http://10.0.0.102:11434/v1'
+_LLM_MODEL = 'llama3.3:70b'
 
 shopping_bp = Blueprint('shopping', __name__)
 
@@ -129,17 +137,48 @@ MEAL_INGREDIENTS = {
     ],
 }
 
-# Fuzzy-match a meal name to the database
+# Keyword-based category detection for manually-added items
+CATEGORY_KEYWORDS = {
+    'Produce': [
+        'apple', 'banana', 'berry', 'berries', 'grape', 'lemon', 'lime', 'orange',
+        'spinach', 'lettuce', 'kale', 'arugula', 'greens', 'broccoli', 'cauliflower',
+        'carrot', 'celery', 'cucumber', 'tomato', 'pepper', 'onion', 'garlic', 'ginger',
+        'zucchini', 'squash', 'mushroom', 'avocado', 'asparagus', 'green bean',
+        'brussels', 'cabbage', 'herb', 'cilantro', 'parsley', 'rosemary', 'thyme',
+        'jalapeño', 'jalapen', 'fresh',
+    ],
+    'Protein': [
+        'chicken', 'beef', 'steak', 'pork', 'lamb', 'turkey', 'salmon', 'tuna',
+        'shrimp', 'fish', 'egg', 'bacon', 'sausage', 'ground', 'ribeye', 'sirloin',
+        'pepperoni', 'meatball', 'brisket', 'chop', 'fillet', 'seafood',
+    ],
+    'Dairy': [
+        'cheese', 'butter', 'cream', 'milk', 'yogurt', 'mozzarella', 'parmesan',
+        'cheddar', 'brie', 'ghee', 'sour cream', 'ricotta', 'kefir',
+    ],
+    'Frozen': [
+        'frozen', 'ice cream', 'freezer',
+    ],
+}
+
+
+def _categorize_item(item_name):
+    """Auto-categorize an item by keyword matching."""
+    name_lower = item_name.lower()
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        for kw in keywords:
+            if kw in name_lower:
+                return cat
+    return 'Pantry'
+
+
 def _match_meal(name):
     name_lower = name.lower().strip()
-    # Exact match first
     if name in MEAL_INGREDIENTS:
         return MEAL_INGREDIENTS[name]
-    # Case-insensitive
     for key, val in MEAL_INGREDIENTS.items():
         if key.lower() == name_lower:
             return val
-    # Partial match — name contains a key word
     for key, val in MEAL_INGREDIENTS.items():
         key_words = set(key.lower().split())
         name_words = set(name_lower.split())
@@ -180,7 +219,6 @@ def _this_weeks_meals():
 
 
 def _build_list(meal_names):
-    # Collect all ingredients across all meals this week
     all_ingredients = {}  # name → category
     unmatched_meals = []
 
@@ -194,42 +232,39 @@ def _build_list(meal_names):
         else:
             unmatched_meals.append(meal)
 
-    # Group by category
-    grouped = {'Produce': [], 'Protein': [], 'Dairy': [], 'Pantry': []}
+    grouped = {'Produce': [], 'Protein': [], 'Dairy': [], 'Pantry': [], 'Frozen': [], 'Other': []}
     for _, (item, cat) in sorted(all_ingredients.items()):
+        if cat not in grouped:
+            cat = 'Other'
         grouped[cat].append({
             'name': item,
+            'id': f"item_{item.lower().replace(' ', '_').replace('(', '').replace(')', '')}",
             'sprouts_url': _sprouts_url(item, cat),
             'wholefoods_url': _wf_url(item, cat),
             'organic': cat in ('Produce', 'Dairy'),
         })
 
-    # Sort each category alphabetically
     for cat in grouped:
         grouped[cat].sort(key=lambda x: x['name'].lower())
 
-    # Add unmatched meals directly as shopping items (search by meal name)
     if unmatched_meals:
-        if 'Other' not in grouped:
-            grouped['Other'] = []
         for meal in unmatched_meals:
             grouped['Other'].append({
                 'name': meal,
+                'id': f"item_meal_{meal.lower().replace(' ', '_')[:30]}",
                 'sprouts_url': _sprouts_url(meal, 'Other'),
                 'wholefoods_url': _wf_url(meal, 'Other'),
                 'organic': False,
             })
 
-    # Remove empty categories
     grouped = {k: v for k, v in grouped.items() if v}
     return grouped, unmatched_meals
 
 
 def _sprouts_url(item, category):
-    """Build Sprouts search URL — organic prefix for Produce & Dairy."""
     prefix = "organic " if category in ("Produce", "Dairy") else ""
     encoded = quote_plus(f"{prefix}{item}")
-    return f"https://shop.sprouts.com/store/sprouts/storefront?search_term={encoded}"
+    return f"https://shop.sprouts.com/search?search_term={encoded}"
 
 
 def _wf_url(item, category):
@@ -243,4 +278,212 @@ def _wf_url(item, category):
 def index():
     meal_names = _this_weeks_meals()
     groups, unmatched = _build_list(meal_names)
-    return render_template('shopping.html', groups=groups, meal_names=meal_names, unmatched=unmatched)
+    checked = session.get('checked_items', [])
+    manual_items = session.get('manual_items', [])
+
+    # Add manual items to groups
+    for item_data in manual_items:
+        name = item_data.get('name', '')
+        cat = item_data.get('category', _categorize_item(name))
+        if cat not in groups:
+            groups[cat] = []
+        groups[cat].append({
+            'name': name,
+            'id': item_data.get('id', f"manual_{name[:20]}"),
+            'sprouts_url': _sprouts_url(name, cat),
+            'wholefoods_url': _wf_url(name, cat),
+            'organic': False,
+            'manual': True,
+        })
+
+    # Count total items
+    total_items = sum(len(v) for v in groups.values())
+
+    return render_template(
+        'shopping.html',
+        groups=groups,
+        meal_names=meal_names,
+        unmatched=unmatched,
+        checked=checked,
+        total_items=total_items,
+    )
+
+
+@shopping_bp.route('/shopping/add', methods=['POST'])
+@login_required
+def add_item():
+    """Add a manual item to the shopping list."""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'No item name provided'}), 400
+
+    manual_items = session.get('manual_items', [])
+    category = _categorize_item(name)
+    item_id = f"manual_{len(manual_items)}_{name[:20].replace(' ', '_')}"
+
+    manual_items.append({
+        'name': name,
+        'category': category,
+        'id': item_id,
+    })
+    session['manual_items'] = manual_items
+    session.modified = True
+
+    return jsonify({
+        'success': True,
+        'item': {
+            'name': name,
+            'category': category,
+            'id': item_id,
+            'sprouts_url': _sprouts_url(name, category),
+            'wholefoods_url': _wf_url(name, category),
+            'organic': False,
+            'manual': True,
+        },
+        'total_items': sum(1 for _ in manual_items) + 1,
+    })
+
+
+@shopping_bp.route('/shopping/check', methods=['POST'])
+@login_required
+def check_item():
+    """Toggle checked state for an item."""
+    data = request.get_json()
+    item_id = data.get('item_id', '')
+    checked = session.get('checked_items', [])
+    if item_id in checked:
+        checked.remove(item_id)
+        is_checked = False
+    else:
+        checked.append(item_id)
+        is_checked = True
+    session['checked_items'] = checked
+    session.modified = True
+    return jsonify({'success': True, 'checked': is_checked})
+
+
+@shopping_bp.route('/shopping/clear-checked', methods=['POST'])
+@login_required
+def clear_checked():
+    """Remove all checked items from manual list and clear checked state."""
+    checked = session.get('checked_items', [])
+    manual_items = session.get('manual_items', [])
+    # Remove manual items that are checked
+    manual_items = [i for i in manual_items if i.get('id') not in checked]
+    session['manual_items'] = manual_items
+    session['checked_items'] = []
+    session.modified = True
+    return jsonify({'success': True})
+
+
+@shopping_bp.route('/shopping/item-count')
+@login_required
+def item_count():
+    """Return current item count for badge."""
+    meal_names = _this_weeks_meals()
+    groups, _ = _build_list(meal_names)
+    manual_items = session.get('manual_items', [])
+    total = sum(len(v) for v in groups.values()) + len(manual_items)
+    return jsonify({'count': total})
+
+
+# ─────────────────────────────────────────────
+# Shopping Intelligence — LLM ingredient suggestions
+# ─────────────────────────────────────────────
+
+def _load_llm_cache():
+    if os.path.exists(_LLM_CACHE_PATH):
+        try:
+            with open(_LLM_CACHE_PATH, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def _save_llm_cache(cache):
+    try:
+        with open(_LLM_CACHE_PATH, 'w') as f:
+            json.dump(cache, f, indent=2)
+    except OSError:
+        pass
+
+
+def _llm_suggest_ingredients(meal_name):
+    """Call local LLM to generate ingredients for a meal name."""
+    prompt = (
+        f'List the grocery ingredients needed to make "{meal_name}". '
+        'Respond ONLY with a JSON array (no explanation, no markdown). '
+        'Each element must be an object with keys "name" (string) and '
+        '"category" (one of: Produce, Protein, Dairy, Pantry). '
+        'Example: [{"name": "chicken breast", "category": "Protein"}, ...]'
+    )
+    payload = {
+        'model': _LLM_MODEL,
+        'messages': [{'role': 'user', 'content': prompt}],
+        'temperature': 0.2,
+        'max_tokens': 512,
+    }
+    resp = http_requests.post(
+        f'{_LLM_BASE_URL}/chat/completions',
+        json=payload,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    content = resp.json()['choices'][0]['message']['content'].strip()
+    # Strip markdown code fences if present
+    if content.startswith('```'):
+        content = re.sub(r'^```[a-z]*\n?', '', content)
+        content = re.sub(r'\n?```$', '', content)
+    return json.loads(content)
+
+
+@shopping_bp.route('/api/shopping/suggest', methods=['POST'])
+@login_required
+def suggest_ingredients():
+    """
+    POST /api/shopping/suggest
+    Body: {"meal_name": "...", "force": false}
+    Returns: {"ingredients": [...], "source": "static|llm"}
+    """
+    data = request.get_json(silent=True) or {}
+    meal_name = str(data.get('meal_name', '')).strip()
+    force = bool(data.get('force', False))
+
+    if not meal_name:
+        return jsonify({'error': 'meal_name is required'}), 400
+
+    # 1. Check static MEAL_INGREDIENTS first (unless force=true)
+    if not force:
+        static = _match_meal(meal_name)
+        if static:
+            ingredients = [{'name': name, 'category': cat} for name, cat in static]
+            return jsonify({'ingredients': ingredients, 'source': 'static'})
+
+    # 2. Check LLM cache
+    cache = _load_llm_cache()
+    cache_key = meal_name.lower()
+    if not force and cache_key in cache:
+        return jsonify({'ingredients': cache[cache_key], 'source': 'llm'})
+
+    # 3. Call LLM
+    try:
+        ingredients = _llm_suggest_ingredients(meal_name)
+        if not isinstance(ingredients, list):
+            raise ValueError('LLM did not return a list')
+        # Normalise — ensure each item has name + category
+        valid_cats = {'Produce', 'Protein', 'Dairy', 'Pantry'}
+        normalised = []
+        for item in ingredients:
+            if isinstance(item, dict) and 'name' in item:
+                cat = item.get('category', 'Pantry')
+                if cat not in valid_cats:
+                    cat = 'Pantry'
+                normalised.append({'name': item['name'], 'category': cat})
+        # Cache and return
+        cache[cache_key] = normalised
+        _save_llm_cache(cache)
+        return jsonify({'ingredients': normalised, 'source': 'llm'})
+    except Exception as exc:
+        return jsonify({'error': f'LLM request failed: {exc}', 'ingredients': [], 'source': 'llm'}), 502
