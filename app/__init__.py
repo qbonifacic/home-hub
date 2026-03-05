@@ -36,6 +36,7 @@ def create_app():
     from .auth import auth_bp
     from .dashboard import dashboard_bp
     from .meals import meals_bp
+    from .meal_prep import meal_prep_bp
     from .chores import chores_bp
     from .shopping import shopping_bp
     from .schedule import schedule_bp
@@ -47,6 +48,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(meals_bp)
+    app.register_blueprint(meal_prep_bp)
     app.register_blueprint(chores_bp)
     app.register_blueprint(shopping_bp)
     app.register_blueprint(schedule_bp)
