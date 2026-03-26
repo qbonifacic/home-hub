@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "/Users/qbot/Projects/home-hub/.venv/bin/uvicorn",
+      "runtimeArgs": ["backend.main:app", "--port", "8400", "--reload"],
+      "port": 8400
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/qbot/Projects/home-hub/frontend"],
+      "port": 5173
+    }
+  ]
+}

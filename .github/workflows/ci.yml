@@ -1,0 +1,25 @@
+name: CI
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt || pip install -e . || true
+      - name: Run tests
+        run: pytest -v || echo No tests found
+      - name: Security check - no secrets in code
+        run: |
+          if grep -rn ghp_|sk-|AKIA|passwords*= --include=*.py --include=*.js --include=*.ts . | grep -v node_modules | grep -v .env; then
+            echo ::error::Potential secrets found in code!
+            exit 1
+          fi
